@@ -1211,6 +1211,7 @@ function openidc.authenticate(opts, target_url, unauth_action, session_opts)
   )
 
   -- if we are not authenticated then redirect to the OP for authentication
+  -- or do various other unauth actions, per other OpenIDC implementations.
   -- the presence of the id_token is check for backwards compatibility
   if not session.present
     or not (session.data.id_token or session.data.authenticated)
@@ -1218,6 +1219,34 @@ function openidc.authenticate(opts, target_url, unauth_action, session_opts)
     or (try_to_renew and token_expired)
   then
     if unauth_action == "pass" then
+      return
+        nil,
+        err,
+        target_url,
+        session
+    elseif unauth_action == "401" then
+      err = "Unauthorized"
+      ngx.header["WWW-Authenticate"] = 'Bearer error="' .. err .. '"'
+      ngx.status = ngx.HTTP_UNAUTHORIZED
+      ngx.say(err)
+      ngx.exit(ngx.HTTP_UNAUTHORIZED)
+      return
+        nil,
+        err,
+        target_url,
+        session
+    elseif unauth_action == "410" then
+      err = "Gone"
+      ngx.status = ngx.HTTP_GONE
+      ngx.say(err)
+      ngx.exit(ngx.HTTP_GONE)
+      return
+        nil,
+        err,
+        target_url,
+        session
+    elseif unauth_action == "error" then
+      err = "Unauthorized"
       return
         nil,
         err,
